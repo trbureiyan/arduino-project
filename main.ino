@@ -1,147 +1,145 @@
 /*
- * ALCOHOLÍMETRO: SISTEMA DE DIAGNÓSTICO Y PRODUCCIÓN
- * * CARACTERÍSTICAS:
- * 1. Debug en tiempo real por Monitor Serie (PC).
- * 2. Feedback visual en LED 13 al recibir CUALQUIER dato Bluetooth.
- * 3. Comandos por PC: 
- * - 'd': Activa modo DEBUG (muestra valores crudos del sensor constantemente).
- * - 'q': Quita modo DEBUG (silencio).
- * 4. Comandos por App:
- * - 'I': Iniciar prueba.
- * - 'X': Detener.
- * - 'S': Guardar.
+ * ALCOHOLÍMETRO FINAL - ARQUITECTURA SEPARADA
+ * * CORRECCIÓN CRÍTICA:
+ * - Se usa SoftwareSerial en pines 10 y 11 para no chocar con el USB.
+ * - El Monitor Serie (PC) SOLO sirve para dar órdenes (Menú).
+ * - El Bluetooth (App) recibe SOLO datos numéricos del sensor.
+ * * CABLEADO:
+ * - HC-05 TX  -> Arduino Pin 10
+ * - HC-05 RX  -> Arduino Pin 11
+ * - Sensor    -> A0
  */
 
 #include <SoftwareSerial.h>
 #include <EEPROM.h>
 
 // --- PINES ---
-const int PIN_RX_BT = 0;  // Conectar al TX del HC-05
-const int PIN_TX_BT = 1;  // Conectar al RX del HC-05
+// ¡IMPORTANTE! NO USAR 0 y 1. Usamos 10 y 11.
+const int PIN_RX_BT = 2;  // Aquí entra el cable TX del Módulo BT
+const int PIN_TX_BT = 3;  // Aquí entra el cable RX del Módulo BT
 const int PIN_SENSOR = A0;
-const int PIN_LED_TESTIGO = 13; // Parpadeara al recibir datos
-// Pines de tus LEDs del semáforo
+const int PIN_LED_TESTIGO = 13;
+
 int ledPins[] = {5, 6, 7, 8, 9, 10, 11, 12}; 
 const int LED_COUNT = 8;
 
 // --- OBJETOS ---
 SoftwareSerial BTSerial(PIN_RX_BT, PIN_TX_BT);
 
-// --- VARIABLES DE ESTADO ---
-bool modoDebug = false;       // Si es true, imprime valores del sensor al PC sin parar
-bool pruebaActiva = false;    // Estado lógico de la app (midiendo o no)
-unsigned long lastSensorRead = 0;
+// --- VARIABLES ---
+bool pruebaActiva = false;    // Controla si enviamos datos o no
+unsigned long lastUpdate = 0;
 
-// --- CALIBRACIÓN ---
-const int SENSOR_MIN = 120;   // Ajustar viendo el modo Debug
-const int SENSOR_MAX = 600;
+// Calibración (Ajustada para ver cambios reales)
+const int SENSOR_MIN = 20;    // Valor mínimo de ruido
+const int SENSOR_MAX = 600;   // Valor máximo esperado
 
 void setup() {
-  // 1. Iniciar Comunicación PC
+  // 1. Puerto Serie PC (Solo Debug)
   Serial.begin(9600);
-  Serial.println("\n=== INICIANDO SISTEMA DE DIAGNOSTICO ===");
-  Serial.println("Escribe 'd' y presiona ENTER para probar el sensor.");
-  Serial.println("Esperando conexion Bluetooth...");
-
-  // 2. Iniciar Comunicación Bluetooth
-  BTSerial.begin(9600); 
+  
+  // 2. Puerto Serie Bluetooth (Comunicación App)
+  BTSerial.begin(9600);
 
   // 3. Configurar Pines
   pinMode(PIN_LED_TESTIGO, OUTPUT);
-  for (int i = 0; i < LED_COUNT; i++) {
-    pinMode(ledPins[i], OUTPUT);
-    digitalWrite(ledPins[i], LOW);
-  }
+  for (int i = 0; i < LED_COUNT; i++) pinMode(ledPins[i], OUTPUT);
 
-  // 4. Calentamiento Rápido (Feedback visual)
-  Serial.print("Calentando sensor (Espera 5s)...");
-  for(int i=0; i<5; i++){
-    digitalWrite(PIN_LED_TESTIGO, HIGH); delay(100);
-    digitalWrite(PIN_LED_TESTIGO, LOW); delay(900);
-    Serial.print(".");
-  }
-  Serial.println(" LISTO.");
+  Serial.println("\n--- SISTEMA LISTO Y SEPARADO ---");
+  Serial.println("CONEXION:");
+  Serial.println("  * Bluetooth TX conectado al Pin 10");
+  Serial.println("  * Bluetooth RX conectado al Pin 11");
+  Serial.println("MENU PC (Escribe el numero y dale Enter):");
+  Serial.println("  [1] FORZAR INICIO (Simular que App envio 'I')");
+  Serial.println("  [2] FORZAR PARADA (Simular que App envio 'X')");
+  Serial.println("----------------------------------------------");
 }
 
 void loop() {
   // ==========================================
-  // A. ESCUCHAR AL PC (MONITOR SERIE)
+  // A. LEER COMANDOS DEL PC (SOLO MENU)
   // ==========================================
   if (Serial.available()) {
     char cmdPC = Serial.read();
-    if (cmdPC == 'd') {
-      modoDebug = !modoDebug; // Alternar
-      Serial.print("\n[PC] Modo Debug: ");
-      Serial.println(modoDebug ? "ACTIVADO" : "DESACTIVADO");
+    // Limpiamos saltos de línea o espacios
+    if(cmdPC == '\n' || cmdPC == '\r' || cmdPC == ' ') return;
+
+    if (cmdPC == '1') {
+      pruebaActiva = true;
+      Serial.println("[PC] -> COMANDO FORZADO: INICIANDO TRANSMISION");
+    } 
+    else if (cmdPC == '2') {
+      pruebaActiva = false;
+      apagarLeds();
+      Serial.println("[PC] -> COMANDO FORZADO: DETENIENDO");
     }
+    else {
+      Serial.println("[PC] -> Comando no reconocido. Usa 1 o 2.");
+    }
+    // NOTA: Aquí NO hay ningún "BTSerial.print", por eso no crashea la App.
   }
 
   // ==========================================
-  // B. ESCUCHAR AL BLUETOOTH (APP)
+  // B. LEER COMANDOS DE LA APP (BLUETOOTH)
   // ==========================================
   if (BTSerial.available()) {
     char cmdBT = BTSerial.read();
     
-    // 1. Feedback Visual Inmediato (Si parpadea, la conexión es buena)
+    // Feedback visual para saber si llega señal
     digitalWrite(PIN_LED_TESTIGO, HIGH);
-    delay(50);
+    delay(50); 
     digitalWrite(PIN_LED_TESTIGO, LOW);
 
-    // 2. Feedback al PC (¿Qué diablos llegó?)
-    Serial.print("[BT RECIBIDO]: '");
-    Serial.print(cmdBT);
-    Serial.print("' (ASCII: ");
-    Serial.print((int)cmdBT);
-    Serial.println(")");
+    // Debug en PC para ver qué llega
+    Serial.print("[BLUETOOTH] Llego: ");
+    Serial.println(cmdBT);
 
-    // 3. Lógica de Control
     if (cmdBT == 'I' || cmdBT == 'i') {
       pruebaActiva = true;
-      Serial.println("-> COMANDO INICIAR ACEPTADO");
+      Serial.println("   -> La App solicito INICIO.");
     } 
     else if (cmdBT == 'X' || cmdBT == 'x') {
       pruebaActiva = false;
       apagarLeds();
-      Serial.println("-> COMANDO DETENER");
+      Serial.println("   -> La App solicito DETENER.");
     }
     else if (cmdBT == 'S' || cmdBT == 's') {
-       // Aquí iría tu lógica de guardar
-       Serial.println("-> COMANDO GUARDAR");
+      Serial.println("   -> La App solicito GUARDAR.");
+      guardarEnEEPROM();
     }
   }
 
   // ==========================================
-  // C. RUTINA DE LECTURA (NO BLOQUEANTE)
+  // C. LECTURA Y ENVÍO AUTOMÁTICO
   // ==========================================
-  // Leemos cada 500ms para no saturar
-  if (millis() - lastSensorRead > 500) {
-    lastSensorRead = millis();
+  // Se ejecuta cada 300ms si la prueba está activa
+  if (pruebaActiva && (millis() - lastUpdate > 300)) {
+    lastUpdate = millis();
+
+    // 1. Leer Sensor Real
+    int raw = analogRead(PIN_SENSOR);
     
-    int valorCrudo = analogRead(PIN_SENSOR);
-    int nivelLed = map(valorCrudo, SENSOR_MIN, SENSOR_MAX, 0, LED_COUNT);
+    // 2. Mapear a LEDs (0 a 8)
+    int nivelLed = map(raw, SENSOR_MIN, SENSOR_MAX, 0, LED_COUNT);
     nivelLed = constrain(nivelLed, 0, LED_COUNT);
 
-    // 1. Salida Debug (Solo al PC)
-    if (modoDebug) {
-      Serial.print("[SENSOR DEBUG] RAW: ");
-      Serial.print(valorCrudo);
-      Serial.print(" | Nivel Mapeado: ");
-      Serial.println(nivelLed);
-    }
+    // 3. Mostrar en Hardware (LEDs físicos)
+    mostrarNivelEnLEDs(nivelLed);
 
-    // 2. Salida a la App (Solo si la prueba está activa)
-    if (pruebaActiva) {
-      mostrarNivelEnLEDs(nivelLed);
-      BTSerial.println(nivelLed); // Enviar a App Inventor
-      
-      // Monitorizar en PC también que se está enviando
-      Serial.print(">> Enviando a App: ");
-      Serial.println(nivelLed);
-    }
+    // 4. Enviar DATOS a la App (Solo números)
+    // Esto es lo que recibe tu gráfica
+    BTSerial.println(nivelLed); 
+    
+    // 5. Ver en PC qué se está enviando
+    Serial.print("Enviando a App -> Sensor RAW: ");
+    Serial.print(raw);
+    Serial.print(" | Nivel: ");
+    Serial.println(nivelLed);
   }
 }
 
-// --- AUXILIAR ---
+// --- FUNCIONES AUXILIARES ---
+
 void mostrarNivelEnLEDs(int nivel) {
   for (int i = 0; i < LED_COUNT; i++) {
     if (i < nivel) digitalWrite(ledPins[i], HIGH);
@@ -150,5 +148,14 @@ void mostrarNivelEnLEDs(int nivel) {
 }
 
 void apagarLeds() {
-  mostrarNivelEnLEDs(0);
+  for (int i = 0; i < LED_COUNT; i++) digitalWrite(ledPins[i], LOW);
+}
+
+void guardarEnEEPROM() {
+   // Simulación de guardado para debug
+   for(int i=0; i<3; i++) {
+     digitalWrite(PIN_LED_TESTIGO, HIGH); delay(50);
+     digitalWrite(PIN_LED_TESTIGO, LOW); delay(50);
+   }
+   Serial.println("   [EEPROM] Guardado simulado ejecutado.");
 }
