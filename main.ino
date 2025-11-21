@@ -16,8 +16,8 @@
 #include <EEPROM.h>
 
 // --- PINES ---
-const int PIN_RX_BT = 10;  // Conectar al TX del HC-05
-const int PIN_TX_BT = 11;  // Conectar al RX del HC-05
+const int PIN_RX_BT = 0;  // Conectar al TX del HC-05
+const int PIN_TX_BT = 1;  // Conectar al RX del HC-05
 const int PIN_SENSOR = A0;
 const int PIN_LED_TESTIGO = 13; // Parpadeara al recibir datos
 // Pines de tus LEDs del semáforo
