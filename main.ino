@@ -15,7 +15,7 @@
  * - Bluetooth HC-05/IS-05: TX -> Pin 2, RX -> Pin 4
  * - Botones: Pin 11 (Guardar), Pin 12 (Leer/Historial) [Ajustar según tu diagrama final]
  * - LEDs: Pines 3, 5, 6, 7, 8, 9, 10, 13 (Ajustar según tu orden físico real)
- */
+*/
 
 #include <SoftwareSerial.h>
 #include <EEPROM.h>
@@ -188,3 +188,132 @@ void procesarComando(char cmd, String fuente) {
     }
   }
 }
+
+/*
+ * ALCOHOLÍMETRO - LÓGICA MATEMÁTICA CORREGIDA
+ * Objetivo: Aumentar sensibilidad para detectar aliento humano.
+
+#include <SoftwareSerial.h>
+#include <EEPROM.h>
+
+// --- PINES ---
+const int PIN_RX_BT = 2;  
+const int PIN_TX_BT = 4;  
+const int PIN_SENSOR = A0;
+const int PIN_LED_TESTIGO = 13;
+
+// PINES DE LEDS (Ajusta a tu orden real: Verde -> Rojo)
+int ledPins[] = {5, 6, 7, 8, 9, 10, 11, 12}; 
+const int LED_COUNT = 8;
+
+SoftwareSerial BTSerial(PIN_RX_BT, PIN_TX_BT);
+
+// --- VARIABLES MATEMÁTICAS ---
+bool pruebaActiva = false;
+int valorBaseAire = 0;        // Valor del sensor en reposo (se autocalibra)
+const int UMBRAL_MINIMO = 10; // Ruido mínimo para empezar a medir
+const int UMBRAL_MAXIMO = 250;// Valor DELTA máximo (Sensibilidad alta)
+                              // Si sube 250 unidades sobre la base, es el máximo nivel.
+                              // BAJA este número si quieres que sea MÁS sensible.
+
+unsigned long lastUpdate = 0;
+
+void setup() {
+  Serial.begin(9600);
+  BTSerial.begin(9600);
+
+  pinMode(PIN_LED_TESTIGO, OUTPUT);
+  for (int i = 0; i < LED_COUNT; i++) pinMode(ledPins[i], OUTPUT);
+
+  Serial.println("--- INICIANDO CALIBRACION DE AIRE ---");
+  Serial.println("NO SOPLES EL SENSOR AUN...");
+  
+  // Tomar 50 lecturas para sacar el promedio del aire limpio
+  long suma = 0;
+  for(int i=0; i<50; i++){
+    suma += analogRead(PIN_SENSOR);
+    digitalWrite(PIN_LED_TESTIGO, !digitalRead(PIN_LED_TESTIGO)); // Parpadeo
+    delay(50);
+  }
+  valorBaseAire = suma / 50;
+  
+  Serial.print("CALIBRADO. Valor Base Aire: ");
+  Serial.println(valorBaseAire);
+  Serial.println("Listo para detectar alcohol.");
+  digitalWrite(PIN_LED_TESTIGO, LOW);
+}
+
+void loop() {
+  // 1. COMANDOS
+  if (BTSerial.available()) {
+    char cmd = BTSerial.read();
+    if (cmd == 'I' || cmd == 'i' || cmd == '1') {
+      pruebaActiva = true;
+      // Recalibrar rápido al iniciar prueba (opcional)
+      // valorBaseAire = analogRead(PIN_SENSOR); 
+      Serial.println("INICIANDO PRUEBA...");
+    }
+    else if (cmd == 'X' || cmd == 'x' || cmd == '2') {
+      pruebaActiva = false;
+      apagarLeds();
+      Serial.println("DETENIDO.");
+    }
+  }
+  
+  // Comandos Debug PC
+  if (Serial.available()) {
+    char c = Serial.read();
+    if(c=='1') pruebaActiva=true;
+    if(c=='2') { pruebaActiva=false; apagarLeds(); }
+  }
+
+  // 2. LÓGICA MATEMÁTICA
+  if (pruebaActiva && (millis() - lastUpdate > 300)) {
+    lastUpdate = millis();
+
+    int lecturaActual = analogRead(PIN_SENSOR);
+    
+    // Cálculo del DELTA (Diferencia respecto a la base)
+    // Si la base es 150 y lees 180, el delta es 30.
+    int delta = lecturaActual - valorBaseAire;
+    
+    // Filtro de negativos (por si oscila hacia abajo)
+    if (delta < 0) delta = 0;
+
+    // MAPEO CORREGIDO
+    // Mapeamos el DELTA (0 a 250) a los LEDs (0 a 8)
+    // Si delta < UMBRAL_MINIMO, el resultado será 0 (filtro de ruido)
+    int nivelLed = 0;
+    
+    if (delta > UMBRAL_MINIMO) {
+       nivelLed = map(delta, UMBRAL_MINIMO, UMBRAL_MAXIMO, 1, LED_COUNT);
+    }
+    
+    // Restricción final
+    nivelLed = constrain(nivelLed, 0, LED_COUNT);
+
+    // Visualización
+    mostrarNivelEnLEDs(nivelLed);
+    BTSerial.println(nivelLed); // Enviar a App
+
+    // Debug Matemático
+    Serial.print("Base: "); Serial.print(valorBaseAire);
+    Serial.print(" | Actual: "); Serial.print(lecturaActual);
+    Serial.print(" | Delta: "); Serial.print(delta);
+    Serial.print(" | NIVEL CALCULADO: "); Serial.println(nivelLed);
+  }
+}
+
+void mostrarNivelEnLEDs(int nivel) {
+  for (int i = 0; i < LED_COUNT; i++) {
+    // < nivel enciende los acumulados.
+    // Ejemplo: Nivel 3 enciende 0, 1 y 2.
+    if (i < nivel) digitalWrite(ledPins[i], HIGH);
+    else digitalWrite(ledPins[i], LOW);
+  }
+}
+
+void apagarLeds() {
+  for (int i = 0; i < LED_COUNT; i++) digitalWrite(ledPins[i], LOW);
+}
+ */
