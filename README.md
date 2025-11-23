@@ -1,7 +1,6 @@
 # B.A.R.T. (Biometric Alcohol Real-time Tracker)
 
 ![Status](https://img.shields.io/badge/Status-Finalizado-success)
-![Platform](https://img.shields.io/badge/Platform-Arduino%20%7C%20Android-blue)
 ![Platform](https://img.shields.io/badge/PLATFORM-ARDUINO%20UNO-blue)
 ![App](https://img.shields.io/badge/APP-MIT%20APP%20INVENTOR-orange)
 
