@@ -1,18 +1,24 @@
 /*
- * PROYECTO: ALCOHOLÍMETRO IOT - VERSIÓN PRODUCCIÓN FINAL (v2)
+ * PROYECTO: ALCOHOLÍMETRO IOT - BART (Biometric Alcohol Real-time Tracker)
  * AUTORES: Brayan Toro Bustos & Pablo Trujillo Artunduaga
  * UNIVERSIDAD SURCOLOMBIANA - Computación Física
  *
  * DESCRIPCIÓN:
- * Sistema de detección de alcohol con sensor MQ-3 (6 pines) recableado correctamente.
- * - Salida Física: Barra de 8 LEDs progresiva.
- * - Salida Bluetooth: Escala simplificada de 3 niveles (1=Verde, 2=Amarillo, 3=Rojo).
+ * Sistema de detección de alcohol con sensor MQ-3 (6 pines).
+ * - Salida Física: Barra de 8 LEDs dinamica.
+ * - Salida Bluetooth: Escala simplificada de semaforo (1: Verde, 2: Amarillo, 3: Rojo).
  *
  * MAPEO DE HARDWARE:
  * - Arduino UNO
  * - Sensor MQ-3: A0 (Usando circuito divisor de voltaje externo)
  * - Bluetooth HC-05: TX -> Pin 2, RX -> Pin 4 (SoftwareSerial)
  * - LEDs: Pines 5 a 12
+ * 
+ * # Esquema de conexion sensor MQ-3 
+ * 5V → Pin Medio Izq (H)
+ * GND → Pin Medio Der (H)
+ * 5V → Pines A (Arriba y Abajo Izq)
+ * A0 → Pines B (Arriba y Abajo Der) → Resistencia 10k → GND
  */
 
 #include <SoftwareSerial.h>
@@ -35,7 +41,7 @@ SoftwareSerial BTSerial(PIN_RX_BT, PIN_TX_BT);
 // Variables de Control
 bool pruebaActiva = false;    
 unsigned long lastUpdate = 0;
-const int INTERVALO_ENVIO = 500; // 500ms entre envíos a la App
+const int INTERVALO_ENVIO = 1000; // 1000ms entre envíos a la App
 
 // Variables de Calibración
 int baseAireLimpio = 0;       // Referencia de aire limpio
@@ -61,42 +67,43 @@ void setup() {
   // Tomamos 20 muestras rápidas para fijar el "Cero"
   for(int i=0; i<20; i++) {
     acumulado += analogRead(PIN_SENSOR);
-    // Animación de espera en LEDs
+
+    // Animación de carga en LEDs
     digitalWrite(ledPins[i % LED_COUNT], HIGH);
-    delay(50);
+    delay(100);
     digitalWrite(ledPins[i % LED_COUNT], LOW);
   }
-  
+  // Promedio de las 20 lecturas iniciales
   baseAireLimpio = acumulado / 20;
   Serial.print(" BASE: ");
   Serial.println(baseAireLimpio);
   
   // Señal de LISTO
-  digitalWrite(PIN_LED_TESTIGO, HIGH); delay(500); digitalWrite(PIN_LED_TESTIGO, LOW);
-  Serial.println("SISTEMA LISTO. Esperando comando 'I'...");
+  digitalWrite(PIN_LED_TESTIGO, HIGH); delay(200); digitalWrite(PIN_LED_TESTIGO, LOW);
+  Serial.println("SISTEMA LISTO. Esperando comando...");
 }
 
 void loop() {
-  // 1. ESCUCHA COMANDOS (App o PC)
+  // 1. ESCUCHA COMANDOS
   verificarComandosEntrantes();
 
   // 2. MEDICIÓN Y PROCESAMIENTO
   if (pruebaActiva && (millis() - lastUpdate > INTERVALO_ENVIO)) {
     lastUpdate = millis();
 
-    // A) LEER SENSOR (Con filtro promedio)
+    // 2.1 LEER SENSOR (Con filtro promedio)
     int lecturaRaw = leerPromedioSensor(10); 
     
-    // B) CALCULAR DELTA (Incremento sobre el aire limpio)
+    // 2.2 CALCULAR DELTA (Incremento sobre el aire limpio)
     int delta = lecturaRaw - baseAireLimpio;
     if (delta < 0) delta = 0;
 
-    // C) MAPEO FÍSICO (0 a 8 LEDs)
+    // 2. MAPEO FÍSICO (0 a 8 LEDs)
     // Convierte el delta (0-300) a escala de LEDs (0-8)
     int nivelLed = map(delta, 20, RANGO_DETECCION, 0, LED_COUNT);
     nivelLed = constrain(nivelLed, 0, LED_COUNT);
 
-    // D) MAPEO LÓGICO APP (1, 2, 3)
+    // 2.4 MAPEO LÓGICO APP (1, 2, 3)
     // Traduce la escala de 8 LEDs a los 3 colores del semáforo
     int nivelApp = 1; // Por defecto Verde (Sobrio)
     
@@ -110,11 +117,11 @@ void loop() {
       nivelApp = 3; // Rojo (LEDs 6, 7 encendidos)
     }
 
-    // E) ACTUADORES
+    // 2.5) ACTUADORES
     mostrarBarraLeds(nivelLed); // Muestra los 8 LEDs progresivos
     enviarDatosApp(nivelApp);   // Envía solo 1, 2 o 3 a la App
     
-    // F) DEBUG (Monitor Serie)
+    // 2.6) DEBUG (Monitor Serie)
     Serial.print("Delta: "); Serial.print(delta);
     Serial.print(" | LEDs: "); Serial.print(nivelLed);
     Serial.print("/8 | App: "); Serial.println(nivelApp);
@@ -171,12 +178,15 @@ void procesarComando(char cmd, String fuente) {
   } 
   else if (cmd == 'X' || cmd == 'x' || cmd == '2') {
     pruebaActiva = false;
-    mostrarBarraLeds(0);
+    mostrarBarraLeds(0); // Apagar todo
     Serial.println("-> PRUEBA DETENIDA (" + fuente + ")");
   }
   else if (cmd == 'S' || cmd == 's') {
     Serial.println("-> GUARDANDO (" + fuente + ")");
     // Feedback visual rápido
-    digitalWrite(PIN_LED_TESTIGO, HIGH); delay(100); digitalWrite(PIN_LED_TESTIGO, LOW);
+    for(int k=0; k<3; k++) { // Parpadeo de confirmación
+       digitalWrite(PIN_LED_TESTIGO, HIGH); delay(50);
+       digitalWrite(PIN_LED_TESTIGO, LOW); delay(50);
+    }
   }
 }
