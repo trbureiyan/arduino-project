@@ -83,3 +83,14 @@ Desarrollado como proyecto final para la asignatura de **Computación Física**.
 * **Pablo Trujillo Artunduaga** - *Ingeniería de Software*
 
 **Institución:** Universidad Surcolombiana
+
+⚠️ DESCARGO DE RESPONSABILIDAD LEGAL
+
+Este dispositivo es un PROTOTIPO EDUCATIVO y NO constituye un instrumento de medición legal según NTC-ISO/IEC 17025.
+
+- NO utilizar como evidencia para despidos laborales
+- NO reemplaza alcoholímetros homologados (ej: Dräger 7510)
+- Uso recomendado: PRE-SCREENING educativo o autocontrol preventivo
+- La decisión final debe basarse en equipos certificados
+
+Cumplimiento Resolución 1843/2025: Este dispositivo puede usarse como herramienta COMPLEMENTARIA de sensibilización, pero los resultados positivos deben confirmarse con equipos certificados.
