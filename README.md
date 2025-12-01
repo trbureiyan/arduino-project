@@ -46,7 +46,8 @@ Proyecto final desarrollado para la asignatura de **Computación Física** en la
 
 ### Hardware (Dispositivo Físico)
 
-<img width="640" height="478" alt="image" src="https://github.com/user-attachments/assets/ce8be6cd-e959-49df-a084-712cd50311be" />
+<img width="500" height="374" alt="BART Core" src="https://github.com/user-attachments/assets/ce8be6cd-e959-49df-a084-712cd50311be" /> <img width="500" height="374" alt="technical art" src="https://github.com/user-attachments/assets/639f2e0d-cc2e-4939-8d99-f932d614395b" />
+
 
 * **🎯 Autocalibración de Punto Cero:** Al iniciar, el sistema muestrea el aire ambiente durante 5 segundos para establecer una línea base dinámica, compensando cambios de humedad, temperatura y altitud
 
@@ -117,6 +118,8 @@ El sistema B.A.R.T. implementa una **arquitectura de tres capas** que separa res
 └─────────────────────────────────────────────────────────┘
 ```
 
+<img width="640" height="478" alt="BART with phone" src="https://github.com/user-attachments/assets/2f91883e-f948-4453-b33c-52d4bd75273c" />
+
 ### Flujo de Datos
 
 1. **Adquisición:** Sensor MQ-3 detecta alcohol → Cambio de resistencia → Divisor de voltaje
@@ -129,6 +132,8 @@ El sistema B.A.R.T. implementa una **arquitectura de tres capas** que separa res
 ---
 
 ## 🛠️ Componentes Requeridos
+
+
 
 ### Software (Stack Tecnológico)
 
@@ -240,7 +245,7 @@ Al encender el Arduino, deberías ver:
 
 ## 🚀 Uso del Sistema
 
-<img width="640" height="478" alt="image" src="https://github.com/user-attachments/assets/990607a6-0136-4747-af4c-2764fd8c9bd4" />
+<img width="640" height="478" alt="BART leds" src="https://github.com/user-attachments/assets/990607a6-0136-4747-af4c-2764fd8c9bd4" />
 
 ### Encendido y Calibración Inicial
 
